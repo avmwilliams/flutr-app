@@ -25,11 +25,18 @@ class WebSocketManager: ObservableObject {
     @Published var messageLog: String = "Ready..."
 
     private var webSocketTask: URLSessionWebSocketTask?
+    private var listenerTask: Task<(), Never>?
+    
     private let url = URL(string: "ws://127.0.0.1:8080/flutrws")!
 //    private let url = URL(string: "wss://127.0.0.1:8080/flutrws")! // Replace with secure once set up
 
     private let encoder: JSONEncoder = JSONEncoder()
     private let decoder: JSONDecoder = JSONDecoder()
+    
+    deinit {
+        listenerTask?.cancel()
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+    }
 
     var isConnected: Bool {
         return webSocketTask?.state == .running ? true : false
@@ -110,7 +117,7 @@ class WebSocketManager: ObservableObject {
     }
 
     private func listenForMessages() {
-        Task.detached { [weak self] in
+        listenerTask = Task.detached(priority: .utility) { [weak self] in
             guard let self = self else { return }
 
             while true {
